@@ -4,24 +4,36 @@ import sharp from "sharp";
 import { fontData, experimental_getFontFileURL } from "astro:assets";
 import { getFontPathByWeight } from "@/utils/getFontPathByWeight";
 import config from "@/config";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 export const GET: APIRoute = async context => {
   const fonts = fontData["--font-google-sans-code"];
-  const regularFontPath = getFontPathByWeight(fonts, 400);
-  const boldFontPath = getFontPathByWeight(fonts, 700);
+  const regularFontPath = fonts ? getFontPathByWeight(fonts, 400) : undefined;
+  const boldFontPath = fonts ? getFontPathByWeight(fonts, 700) : undefined;
 
+  // Fallback to default OG image when Google Fonts unavailable
   if (regularFontPath === undefined || boldFontPath === undefined) {
-    throw new Error("Cannot find the font path.");
+    const defaultOgPath = fileURLToPath(new URL("../../default-og.jpg", import.meta.url));
+    const defaultBuffer = readFileSync(defaultOgPath);
+    return new Response(defaultBuffer, { headers: { "Content-Type": "image/jpeg" } });
   }
 
-  const [regularData, boldData] = await Promise.all([
-    fetch(experimental_getFontFileURL(regularFontPath, context.url)).then(res =>
-      res.arrayBuffer()
-    ),
-    fetch(experimental_getFontFileURL(boldFontPath, context.url)).then(res =>
-      res.arrayBuffer()
-    ),
-  ]);
+  const fontConfigs = [];
+  if (regularFontPath !== undefined && boldFontPath !== undefined) {
+    const [regularData, boldData] = await Promise.all([
+      fetch(experimental_getFontFileURL(regularFontPath, context.url)).then(res =>
+        res.arrayBuffer()
+      ),
+      fetch(experimental_getFontFileURL(boldFontPath, context.url)).then(res =>
+        res.arrayBuffer()
+      ),
+    ]);
+    fontConfigs.push(
+      { name: "Google Sans Code", data: regularData, weight: 400, style: "normal" },
+      { name: "Google Sans Code", data: boldData, weight: 700, style: "normal" }
+    );
+  }
 
   const svg = await satori(
     {
@@ -152,20 +164,7 @@ export const GET: APIRoute = async context => {
       width: 1200,
       height: 630,
       embedFont: true,
-      fonts: [
-        {
-          name: "Google Sans Code",
-          data: regularData,
-          weight: 400,
-          style: "normal",
-        },
-        {
-          name: "Google Sans Code",
-          data: boldData,
-          weight: 700,
-          style: "normal",
-        },
-      ],
+      fonts: fontConfigs,
     }
   );
 
