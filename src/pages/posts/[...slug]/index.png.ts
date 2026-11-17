@@ -43,8 +43,8 @@ export const GET: APIRoute = async ({ props, url }) => {
       ),
     ]);
     fontConfigs.push(
-      { name: "Google Sans Code", data: regularData, weight: 400, style: "normal" },
-      { name: "Google Sans Code", data: boldData, weight: 700, style: "normal" }
+      { name: "Google Sans Code", data: regularData, weight: 400 as const, style: "normal" as const },
+      { name: "Google Sans Code", data: boldData, weight: 700 as const, style: "normal" as const }
     );
   }
 
